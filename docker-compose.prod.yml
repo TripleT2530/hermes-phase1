@@ -1,0 +1,94 @@
+version: "3.9"
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
+  sandbox:
+    driver: bridge
+    internal: true
+volumes:
+  caddy_data:
+  caddy_config:
+  sqlite_data:
+  redis_data:
+  webui_data:
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [frontend]
+    mem_limit: 192m
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    environment:
+      OPENAI_API_BASE_URLS: http://hermes-core:8000/v1
+      OPENAI_API_KEY: hermes-internal
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?set-in-.env}
+      ENABLE_DIRECT_CONNECTIONS: "false"
+      OPENAI_API_TYPE: "openai"
+      DISABLE_DATABASE_ENCRYPTION: "true"
+    volumes:
+      - webui_data:/app/backend/data
+    networks: [frontend, backend]
+    mem_limit: 1024m
+    depends_on:
+      hermes-core: { condition: service_healthy }
+  hermes-core:
+    build: ./core
+    container_name: hermes-core
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      SQLITE_PATH: /data/hermes.db
+      TOOL_RUNNER_URL: http://tool-runner:9000
+      SCRIPT_HASH_REGISTRY: /data/script_hashes.json
+      SESSION_TTL: "3600"
+    volumes:
+      - sqlite_data:/data
+      - ./core/script_hashes.json:/data/script_hashes.json:ro
+    networks: [backend, sandbox]
+    mem_limit: 2048m
+    depends_on:
+      redis: { condition: service_healthy }
+      tool-runner: { condition: service_healthy }
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "400mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redis_data:/data
+    networks: [backend]
+    mem_limit: 512m
+  sqlite-backup:
+    image: litestream/litestream:latest
+    container_name: sqlite-backup
+    restart: unless-stopped
+    command: replicate /data/hermes.db ${BACKUP_URL:-file:///backup/hermes.db}
+    volumes:
+      - sqlite_data:/data
+      - ./backup:/backup
+    networks: [backend]
+    mem_limit: 128m
+  tool-runner:
+    build: ./tool-runner
+    container_name: tool-runner
+    restart: unless-stopped
+    networks: [sandbox]
+    mem_limit: 1024m
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev

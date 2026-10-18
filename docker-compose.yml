@@ -1,0 +1,140 @@
+version: "3.9"
+
+# ── Networks ─────────────────────────────────────────────
+networks:
+  frontend:        # Caddy ↔ Open WebUI (public entry)
+    driver: bridge
+  backend:         # Core ↔ Redis ↔ SQLite ↔ (LLM in Phase 2)
+    driver: bridge
+  sandbox:         # Tool Runner — NO INTERNET
+    driver: bridge
+    internal: true
+
+# ── Volumes ──────────────────────────────────────────────
+volumes:
+  caddy_data:
+  caddy_config:
+  sqlite_data:
+  redis_data:
+  webui_data:
+
+# ── Services ─────────────────────────────────────────────
+services:
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [frontend]
+    mem_limit: 192m
+    healthcheck:
+      test: ["CMD", "caddy", "version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open-webui
+    restart: unless-stopped
+    environment:
+      OPENAI_API_BASE_URLS: http://hermes-core:8000/v1
+      OPENAI_API_KEY: hermes-internal
+      DISABLE_DATABASE_ENCRYPTION: "true"
+      WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?set-in-.env}
+      ENABLE_DIRECT_CONNECTIONS: "true"
+      OPENAI_API_TYPE: "openai"
+    volumes:
+      - webui_data:/app/backend/data
+    networks: [frontend, backend]
+    mem_limit: 1024m
+    depends_on:
+      hermes-core: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  hermes-core:
+    build: ./core
+    container_name: hermes-core
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      SQLITE_PATH: /data/hermes.db
+      TOOL_RUNNER_URL: http://tool-runner:9000
+      SCRIPT_HASH_REGISTRY: /data/script_hashes.json
+      SESSION_TTL: "3600"
+    volumes:
+      - sqlite_data:/data
+      - ./core/script_hashes.json:/data/script_hashes.json:ro
+    networks: [backend, sandbox]
+    mem_limit: 2048m
+    depends_on:
+      redis: { condition: service_healthy }
+      tool-runner: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 400mb
+      - --maxmemory-policy
+      - allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks: [backend]
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  sqlite-backup:   # Litestream = continuous replication (Phase 1 Safe Harbor)
+    image: litestream/litestream:latest
+    container_name: sqlite-backup
+    restart: unless-stopped
+    command: replicate /data/hermes.db ${BACKUP_URL:-file:///backup/hermes.db}
+    volumes:
+      - sqlite_data:/data
+      - ./backup:/backup
+    networks: [backend]
+    mem_limit: 128m
+    depends_on:
+      hermes-core: { condition: service_healthy }
+
+  tool-runner:     # ISOLATED — no internet, no-new-privileges
+    build: ./tool-runner
+    container_name: tool-runner
+    restart: unless-stopped
+    networks: [sandbox]
+    mem_limit: 1024m
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,noexec,nosuid,nodev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

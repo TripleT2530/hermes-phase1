@@ -1,0 +1,7 @@
+# Codespaces override — DO NOT copy to CX42 production
+services:
+  caddy:
+    profiles: ["never-codespaces"]
+  open-webui:
+    ports:
+      - "8080:8080"
