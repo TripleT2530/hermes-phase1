@@ -35,7 +35,7 @@ services:
       OPENAI_API_BASE_URLS: http://hermes-core:8000/v1
       OPENAI_API_KEY: hermes-internal
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY:?set-in-.env}
-      ENABLE_DIRECT_CONNECTIONS: "false"
+      ENABLE_DIRECT_CONNECTIONS: "true"
       OPENAI_API_TYPE: "openai"
       DISABLE_DATABASE_ENCRYPTION: "true"
     volumes:
@@ -78,7 +78,7 @@ services:
     command: replicate /data/hermes.db ${BACKUP_URL:-file:///backup/hermes.db}
     volumes:
       - sqlite_data:/data
-      - ./backup:/backup
+      - ./backups:/backups
     networks: [backend]
     mem_limit: 128m
   tool-runner:

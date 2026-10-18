@@ -6,3 +6,4 @@
 
 ## Checkpoint
 - Phase 1 (Codespaces Dry Run) Officially Closed & Approved. READY FOR VPS CX42.
+- [ ] Test Tool Runner Isolation on real VPS.
