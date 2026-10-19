@@ -15,3 +15,8 @@
 - test_litellm_fallback.sh
 - test_ram_enforcer.sh
 - Status: LOCKED & READY FOR VPS
+
+## Step 2: VPS Deployment (Day 0 Battle Plan - Approved by Hermes)
+1. **Pre-run Cleanup:** Run `docker system prune -af` to clean the VPS environment before deployment.
+2. **Post-run Monitoring:** Monitor `docker stats` and Langfuse logs for at least 1 hour to observe resource consumption patterns.
+3. **Chaos Testing:** Execute all S3 Test Scripts immediately after deployment to prove the system's resilience against chaos in the real environment.
