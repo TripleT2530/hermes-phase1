@@ -1,0 +1,18 @@
+model_list:
+  - model_name: "hermes-brain-primary"
+    litellm_params:
+      model: "openrouter/openai/gpt-4o"
+      api_key: "os.environ/OPENROUTER_API_KEY"
+  - model_name: "hermes-brain-fallback"
+    litellm_params:
+      model: "openrouter/anthropic/claude-3.5-sonnet"
+      api_key: "os.environ/OPENROUTER_API_KEY"
+router_settings:
+  routing_strategy: "usage-based-routing-v2"
+  enable_fallbacks: true
+  fallbacks: [{"hermes-brain-primary": ["hermes-brain-fallback"]}]
+  allowed_fails: 3
+  cooldown_time: 30
+litellm_settings:
+  drop_params: true
+  set_verbose: false

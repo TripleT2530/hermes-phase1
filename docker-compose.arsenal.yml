@@ -1,0 +1,60 @@
+version: "3.9"
+networks:
+  backend:
+    external: true
+    name: hermes-phase1_backend
+  frontend:
+    external: true
+    name: hermes-phase1_frontend
+volumes:
+  qdrant_data:
+  langfuse_data:
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    ports: ["127.0.0.1:6333:6333", "127.0.0.1:6334:6334"]
+    volumes: ["qdrant_data:/qdrant/storage"]
+    networks: [backend]
+    mem_limit: 4096m
+    environment: ["QDRANT__STORAGE__ON_DISK_PAYLOAD=true"]
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm
+    restart: unless-stopped
+    ports: ["127.0.0.1:4000:4000"]
+    volumes: ["./litellm_config.yaml:/app/config.yaml:ro"]
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    networks: [backend]
+    mem_limit: 2048m
+    environment: ["OPENROUTER_API_KEY=${OPENROUTER_API_KEY}"]
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: langfuse
+    restart: unless-stopped
+    ports: ["127.0.0.1:3000:3000"]
+    networks: [backend, frontend]
+    mem_limit: 2048m
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@langfuse-db:5432/langfuse
+      - NEXTAUTH_SECRET=${LANGFUSE_SECRET}
+      - SALT=${LANGFUSE_SALT}
+      - NEXTAUTH_URL=http://localhost:3000
+    depends_on: [langfuse-db]
+  langfuse-db:
+    image: postgres:15-alpine
+    container_name: langfuse-db
+    restart: unless-stopped
+    networks: [backend]
+    mem_limit: 512m
+    environment: ["POSTGRES_USER=postgres", "POSTGRES_PASSWORD=postgres", "POSTGRES_DB=langfuse"]
+    volumes: ["langfuse_data:/var/lib/postgresql/data"]
+  firecrawl:
+    image: mendableai/firecrawl:latest
+    container_name: firecrawl
+    restart: unless-stopped
+    ports: ["127.0.0.1:3002:3002"]
+    networks: [backend, frontend]
+    mem_limit: 2048m
+    environment: ["PORT=3002", "REDIS_URL=redis://redis:6379/1"]
