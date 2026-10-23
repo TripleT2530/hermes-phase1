@@ -45,7 +45,9 @@ services:
     depends_on:
       hermes-core: { condition: service_healthy }
   hermes-core:
-    build: ./core
+    build:
+      context: .
+      dockerfile: core/Dockerfile
     container_name: hermes-core
     restart: unless-stopped
     environment:

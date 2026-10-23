@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import List, Optional, Dict
 import os, json, time, hashlib, sqlite3, logging, base64
 from contextlib import contextmanager
-import redis, httpx
+import httpx
+import redis.asyncio as aioredis
 import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '05_CORE')))
@@ -37,7 +38,7 @@ def init_db():
     os.makedirs(os.path.dirname(SQLITE_PATH), exist_ok=True)
     with db() as c: c.executescript(SCHEMA)
 
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
 app = FastAPI(title="Hermes Core", version="5.2.1")
 
 @app.on_event("startup")
@@ -48,7 +49,7 @@ async def _start():
 async def healthz():
     out = {"status": "ok"}
     try:
-        redis_client.ping(); out["redis"] = "ok"
+        await redis_client.ping(); out["redis"] = "ok"
     except Exception as e:
         out["redis"] = "fail"; out["status"] = "degraded"
     return out
@@ -66,7 +67,7 @@ class ChatReq(BaseModel):
 async def chat(req: ChatReq):
     sid = req.session_id or f"s-{int(time.time()*1000)}"
     key = f"session:{sid}"
-    redis_client.setex(key, 3600, json.dumps([m.dict() for m in req.messages[-5:]]))
+    await redis_client.setex(key, 3600, json.dumps([m.dict() for m in req.messages[-5:]]))
     with db() as c:
         c.execute(
             "INSERT OR REPLACE INTO sessions VALUES (?,?,?,?)",
