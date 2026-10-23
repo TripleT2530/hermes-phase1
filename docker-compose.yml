@@ -64,7 +64,9 @@ services:
       retries: 3
 
   hermes-core:
-    build: ./core
+    build:
+      context: .
+      dockerfile: core/Dockerfile
     container_name: hermes-core
     restart: unless-stopped
     environment:
@@ -123,7 +125,9 @@ services:
       hermes-core: { condition: service_healthy }
 
   tool-runner:     # ISOLATED — no internet, no-new-privileges
-    build: ./tool-runner
+    build:
+      context: .
+      dockerfile: tool-runner/Dockerfile
     container_name: tool-runner
     restart: unless-stopped
     networks: [sandbox]

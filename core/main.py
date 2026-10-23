@@ -7,7 +7,7 @@ import httpx
 import redis.asyncio as aioredis
 import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '05_CORE')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '05_CORE')))
 from planner import ModelPlanner
 from memory import MemoryManager
 

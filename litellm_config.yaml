@@ -1,18 +1,37 @@
 model_list:
-  - model_name: "hermes-brain-primary"
+  - model_name: "hermes-primary"
     litellm_params:
-      model: "openrouter/openai/gpt-4o"
-      api_key: "os.environ/OPENROUTER_API_KEY"
-  - model_name: "hermes-brain-fallback"
+      model: "openai/mock-success"
+      api_base: "http://mock-openrouter:8080/v1"
+      api_key: "mock-key"
+  - model_name: "hermes-primary-429"
     litellm_params:
-      model: "openrouter/anthropic/claude-3.5-sonnet"
-      api_key: "os.environ/OPENROUTER_API_KEY"
+      model: "openai/mock-429"
+      api_base: "http://mock-openrouter:8080/v1"
+      api_key: "mock-key"
+  - model_name: "hermes-primary-500"
+    litellm_params:
+      model: "openai/mock-500"
+      api_base: "http://mock-openrouter:8080/v1"
+      api_key: "mock-key"
+  - model_name: "hermes-primary-404"
+    litellm_params:
+      model: "openai/mock-404"
+      api_base: "http://mock-openrouter:8080/v1"
+      api_key: "mock-key"
+  - model_name: "hermes-fallback"
+    litellm_params:
+      model: "openai/mock-fallback"
+      api_base: "http://mock-openrouter:8080/v1"
+      api_key: "mock-key"
+
 router_settings:
-  routing_strategy: "usage-based-routing-v2"
   enable_fallbacks: true
-  fallbacks: [{"hermes-brain-primary": ["hermes-brain-fallback"]}]
-  allowed_fails: 3
-  cooldown_time: 30
-litellm_settings:
-  drop_params: true
-  set_verbose: false
+  fallbacks: 
+    - {"hermes-primary-429": ["hermes-fallback"]}
+    - {"hermes-primary-500": ["hermes-fallback"]}
+  allowed_fails: 1
+  cooldown_time: 10
+
+general_settings:
+  master_key: "sk-1234"
