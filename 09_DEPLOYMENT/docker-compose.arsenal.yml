@@ -1,0 +1,48 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: arsenal-qdrant
+    restart: unless-stopped
+    networks:
+      - arsenal-internal
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: arsenal-litellm
+    restart: unless-stopped
+    networks:
+      - hermes-net
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+  langfuse:
+    image: langfuse/langfuse:latest
+    container_name: arsenal-langfuse
+    restart: unless-stopped
+    networks:
+      - hermes-net
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+  firecrawl:
+    image: mendableai/firecrawl:latest
+    container_name: arsenal-firecrawl
+    restart: unless-stopped
+    networks:
+      - hermes-net
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+networks:
+  arsenal-internal:
+    driver: bridge
+    internal: true
+  hermes-net:
+    driver: bridge
+    internal: false

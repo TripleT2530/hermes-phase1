@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hermes.system/schemas/multi_agent_message.json",
+  "title": "HermesMultiAgentMessage",
+  "type": "object",
+  "properties": {
+    "message_metadata": {
+      "type": "object",
+      "properties": {
+        "message_id": { "type": "string", "format": "uuid" },
+        "correlation_id": { "type": "string", "format": "uuid" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "priority": { "type": "string", "enum": ["low", "normal", "high", "critical"], "default": "normal" }
+      },
+      "required": ["message_id", "correlation_id", "timestamp"]
+    },
+    "routing": {
+      "type": "object",
+      "properties": {
+        "sender_agent_id": { "type": "string" },
+        "target_channel": { "type": "string" },
+        "target_agent_id": { "type": "string" }
+      },
+      "required": ["sender_agent_id", "target_channel"]
+    },
+    "payload": {
+      "type": "object",
+      "properties": {
+        "action_type": { "type": "string", "enum": ["EXECUTE_TASK", "REPORT_STATUS", "RETURN_RESULT", "FAIL_CLOSED"] },
+        "task_context": { "type": "object" },
+        "security_signature": { "type": "string" }
+      },
+      "required": ["action_type", "task_context", "security_signature"]
+    }
+  },
+  "required": ["message_metadata", "routing", "payload"],
+  "additionalProperties": false
+}

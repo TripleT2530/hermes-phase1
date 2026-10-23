@@ -1,0 +1,13 @@
+model_list:
+  - model_name: hermes-primary
+    litellm_params:
+      model: openrouter/openai/gpt-4o
+      api_key: os.environ/OPENROUTER_API_KEY
+  - model_name: hermes-fallback
+    litellm_params:
+      model: openrouter/anthropic/claude-3.5-sonnet
+      api_key: os.environ/OPENROUTER_API_KEY
+router_settings:
+  fallbacks: [{"hermes-primary": ["hermes-fallback"]}]
+general_settings:
+  LITELLM_LOCAL_MODEL_COST_MAP: "True"
